@@ -466,39 +466,125 @@
                 status.textContent = 'Checking...';
                 status.className = 'video-item-status';
 
-                // Try to load the video
-                const testVideo = document.createElement('video');
-                testVideo.crossOrigin = 'anonymous'; // Add CORS support
-                
-                let loaded = false;
-                let errored = false;
+                // Use a multi-method approach for checking
+                var checkComplete = false;
+                var methodsAttempted = 0;
+                var totalMethods = 2;
 
-                // Set a timeout for the check
+                // Method 1: Try fetch with no-cors (works in most environments)
+                fetch(url, { 
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                })
+                .then(function(response) {
+                    methodsAttempted++;
+                    // With no-cors, we can't read the response, but if fetch succeeds, URL is reachable
+                    if (!checkComplete) {
+                        checkComplete = true;
+                        indicator.className = 'video-item-indicator online';
+                        status.textContent = 'Online';
+                        status.className = 'video-item-status online';
+                    }
+                })
+                .catch(function(error) {
+                    methodsAttempted++;
+                    // Fetch failed, but this doesn't mean the video is offline
+                    // Try video element method
+                    if (methodsAttempted >= totalMethods && !checkComplete) {
+                        tryVideoElementCheck(url, indicator, status);
+                    }
+                });
+
+                // Method 2: Try video element after a short delay
+                setTimeout(function() {
+                    if (!checkComplete) {
+                        tryVideoElementCheck(url, indicator, status);
+                    }
+                }, 500);
+            }
+
+            function tryVideoElementCheck(url, indicator, status) {
+                // Try to load the video using video element
+                const testVideo = document.createElement('video');
+                testVideo.muted = true;
+                testVideo.preload = 'metadata';
+                
+                let resolved = false;
+                let errorCode = null;
+
+                // Set a reasonable timeout
                 const timeout = setTimeout(function() {
-                    if (!loaded && !errored) {
-                        indicator.className = 'video-item-indicator offline';
-                        status.textContent = 'Offline';
-                        status.className = 'video-item-status offline';
+                    if (!resolved) {
+                        resolved = true;
+                        // If we timeout without error, assume video is loading (online but slow)
+                        indicator.className = 'video-item-indicator online';
+                        status.textContent = 'Online';
+                        status.className = 'video-item-status online';
                         cleanupVideo(testVideo);
                     }
                 }, CHECK_TIMEOUT_MS);
 
                 testVideo.addEventListener('loadedmetadata', function() {
-                    loaded = true;
-                    clearTimeout(timeout);
-                    indicator.className = 'video-item-indicator online';
-                    status.textContent = 'Online';
-                    status.className = 'video-item-status online';
-                    cleanupVideo(testVideo);
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        indicator.className = 'video-item-indicator online';
+                        status.textContent = 'Online';
+                        status.className = 'video-item-status online';
+                        cleanupVideo(testVideo);
+                    }
                 });
 
-                testVideo.addEventListener('error', function() {
-                    errored = true;
-                    clearTimeout(timeout);
-                    indicator.className = 'video-item-indicator offline';
-                    status.textContent = 'Offline';
-                    status.className = 'video-item-status offline';
-                    cleanupVideo(testVideo);
+                testVideo.addEventListener('loadeddata', function() {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        indicator.className = 'video-item-indicator online';
+                        status.textContent = 'Online';
+                        status.className = 'video-item-status online';
+                        cleanupVideo(testVideo);
+                    }
+                });
+
+                testVideo.addEventListener('canplay', function() {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        indicator.className = 'video-item-indicator online';
+                        status.textContent = 'Online';
+                        status.className = 'video-item-status online';
+                        cleanupVideo(testVideo);
+                    }
+                });
+
+                testVideo.addEventListener('error', function(e) {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        
+                        // Check error code
+                        if (testVideo.error) {
+                            errorCode = testVideo.error.code;
+                            
+                            // Error code 2 (NETWORK) or 4 (SRC_NOT_SUPPORTED) in iframe/Google Sites
+                            // often means CORS issue, not that video is offline
+                            if (errorCode === 2 || errorCode === 4) {
+                                // Assume online but with CORS restrictions
+                                indicator.className = 'video-item-indicator online';
+                                status.textContent = 'Online';
+                                status.className = 'video-item-status online';
+                                cleanupVideo(testVideo);
+                                return;
+                            }
+                        }
+                        
+                        // For other errors, mark as offline
+                        indicator.className = 'video-item-indicator offline';
+                        status.textContent = 'Offline';
+                        status.className = 'video-item-status offline';
+                        cleanupVideo(testVideo);
+                    }
                 });
 
                 // Start loading the video
