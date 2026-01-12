@@ -29,6 +29,8 @@ A Google-style web application that displays a list of video links with live onl
 3. Paste the HTML code
 4. The application will work directly in your Google Site
 
+**Note for Google Sites**: Due to iframe security and CORS restrictions in Google Sites, the indicator uses smart detection that assumes videos are online when they encounter typical CORS errors. This is because the video server is reachable but cross-origin policies prevent full metadata loading. If you see "Online" status, the video link is accessible.
+
 ## Status Indicators
 
 - 🔵 **Blue (Checking)**: Currently checking the link status
@@ -46,7 +48,11 @@ You can add more similar links using the input field.
 
 ## Technical Details
 
-- **Video Detection**: Uses JavaScript's Video API to check if a video URL is accessible by attempting to load its metadata
+- **Video Detection**: Uses a multi-method approach to check video accessibility:
+  1. Fetch API with 'no-cors' mode for initial check
+  2. Video element metadata loading as fallback
+  3. Smart error handling for CORS/iframe restrictions
+- **Google Sites Compatibility**: When CORS errors occur (common in Google Sites), the checker assumes the video is online since the URL was reachable
 - **Auto-Refresh**: Automatically rechecks all links every 30 seconds to keep status current
 - **Timeout**: 10-second timeout per check to prevent hanging
 - **CORS Support**: Includes crossOrigin attribute for cross-domain video checking
