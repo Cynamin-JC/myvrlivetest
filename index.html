@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Link Indicator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <span class="logo-text">Video Link Checker</span>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="videoUrl" placeholder="Enter video URL (.mp4)" class="search-input">
+            <button id="checkBtn" class="check-button">Check Link</button>
+        </div>
+        
+        <div id="indicator" class="indicator hidden">
+            <div class="indicator-dot"></div>
+            <span class="indicator-text"></span>
+        </div>
+        
+        <div id="videoPreview" class="video-preview hidden">
+            <video id="videoPlayer" controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
