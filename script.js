@@ -5,16 +5,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const indicatorText = indicator.querySelector('.indicator-text');
     const videoPreview = document.getElementById('videoPreview');
     const videoPlayer = document.getElementById('videoPlayer');
+    const videoList = document.getElementById('videoList');
 
     // Configuration constants
     const CHECK_TIMEOUT_MS = 10000;
     const SUPPORTED_FORMATS = ['.mp4'];
+    const RECHECK_INTERVAL_MS = 30000; // Recheck every 30 seconds
+
+    // Premade list of video links
+    let videoLinks = [
+        'https://stream.vrcdn.live/live/cynamin.live.mp4'
+    ];
+
+    // Load saved links from localStorage
+    const savedLinks = localStorage.getItem('videoLinks');
+    if (savedLinks) {
+        videoLinks = JSON.parse(savedLinks);
+    }
+
+    // Initialize the video list
+    initializeVideoList();
+    
+    // Start periodic checks
+    setInterval(recheckAllLinks, RECHECK_INTERVAL_MS);
 
     // Check link when button is clicked
     checkBtn.addEventListener('click', function() {
         const url = videoUrlInput.value.trim();
         if (url) {
-            checkVideoLink(url);
+            addVideoToList(url);
+            videoUrlInput.value = '';
         } else {
             showIndicator('offline', 'Please enter a video URL');
         }
@@ -25,16 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             const url = videoUrlInput.value.trim();
             if (url) {
-                checkVideoLink(url);
+                addVideoToList(url);
+                videoUrlInput.value = '';
             }
         }
     });
 
-    function checkVideoLink(url) {
-        // Show checking state
-        showIndicator('checking', 'Checking link...');
-        videoPreview.classList.add('hidden');
-
+    function addVideoToList(url) {
         // Validate URL format
         const urlObj = isValidUrl(url);
         if (!urlObj) {
@@ -42,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Check if URL ends with supported format by examining pathname
+        // Check if URL ends with supported format
         const pathname = urlObj.pathname.toLowerCase();
         const hasValidFormat = SUPPORTED_FORMATS.some(format => 
             pathname.endsWith(format)
@@ -51,6 +68,69 @@ document.addEventListener('DOMContentLoaded', function() {
             showIndicator('offline', 'URL must point to an .mp4 file');
             return;
         }
+
+        // Check if URL already exists
+        if (videoLinks.includes(url)) {
+            showIndicator('checking', 'Link already in list, rechecking...');
+            checkVideoInList(url);
+            return;
+        }
+
+        // Add to list
+        videoLinks.push(url);
+        saveLinksToStorage();
+        showIndicator('checking', 'Added to list, checking status...');
+        
+        // Create list item and check status
+        createVideoListItem(url);
+        checkVideoInList(url);
+    }
+
+    function initializeVideoList() {
+        videoList.innerHTML = '';
+        videoLinks.forEach(url => {
+            createVideoListItem(url);
+            checkVideoInList(url);
+        });
+    }
+
+    function createVideoListItem(url) {
+        const existingItem = document.querySelector(`[data-url="${url}"]`);
+        if (existingItem) return;
+
+        const item = document.createElement('div');
+        item.className = 'video-item';
+        item.setAttribute('data-url', url);
+        
+        item.innerHTML = `
+            <div class="video-item-indicator checking"></div>
+            <div class="video-item-content">
+                <a href="#" class="video-item-url" title="${url}">${url}</a>
+                <div class="video-item-status">Checking...</div>
+            </div>
+        `;
+
+        // Add click event to play video
+        const urlLink = item.querySelector('.video-item-url');
+        urlLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadVideoPreview(url);
+        });
+
+        videoList.appendChild(item);
+    }
+
+    function checkVideoInList(url) {
+        const item = document.querySelector(`[data-url="${url}"]`);
+        if (!item) return;
+
+        const indicator = item.querySelector('.video-item-indicator');
+        const status = item.querySelector('.video-item-status');
+
+        // Set checking state
+        indicator.className = 'video-item-indicator checking';
+        status.textContent = 'Checking...';
+        status.className = 'video-item-status';
 
         // Try to load the video
         const testVideo = document.createElement('video');
@@ -61,7 +141,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set a timeout for the check
         const timeout = setTimeout(() => {
             if (!loaded && !errored) {
-                showIndicator('offline', 'Link is not responding or offline');
+                indicator.className = 'video-item-indicator offline';
+                status.textContent = 'Offline';
+                status.className = 'video-item-status offline';
                 cleanupVideo(testVideo);
             }
         }, CHECK_TIMEOUT_MS);
@@ -69,21 +151,34 @@ document.addEventListener('DOMContentLoaded', function() {
         testVideo.addEventListener('loadedmetadata', function() {
             loaded = true;
             clearTimeout(timeout);
-            showIndicator('live', 'Video link is live!');
-            loadVideoPreview(url);
+            indicator.className = 'video-item-indicator online';
+            status.textContent = 'Online';
+            status.className = 'video-item-status online';
             cleanupVideo(testVideo);
         });
 
         testVideo.addEventListener('error', function() {
             errored = true;
             clearTimeout(timeout);
-            showIndicator('offline', 'Video link is not accessible or offline');
+            indicator.className = 'video-item-indicator offline';
+            status.textContent = 'Offline';
+            status.className = 'video-item-status offline';
             cleanupVideo(testVideo);
         });
 
         // Start loading the video
         testVideo.src = url;
         testVideo.load();
+    }
+
+    function recheckAllLinks() {
+        videoLinks.forEach(url => {
+            checkVideoInList(url);
+        });
+    }
+
+    function saveLinksToStorage() {
+        localStorage.setItem('videoLinks', JSON.stringify(videoLinks));
     }
 
     function cleanupVideo(videoElement) {
@@ -103,11 +198,18 @@ document.addEventListener('DOMContentLoaded', function() {
         indicator.classList.remove('hidden', 'live', 'offline', 'checking');
         indicator.classList.add(status);
         indicatorText.textContent = message;
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            indicator.classList.add('hidden');
+        }, 3000);
     }
 
     function loadVideoPreview(url) {
         videoPlayer.src = url;
         videoPreview.classList.remove('hidden');
+        // Scroll to video preview
+        videoPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function isValidUrl(string) {
