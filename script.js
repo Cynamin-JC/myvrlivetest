@@ -36,14 +36,16 @@ document.addEventListener('DOMContentLoaded', function() {
         videoPreview.classList.add('hidden');
 
         // Validate URL format
-        if (!isValidUrl(url)) {
+        const urlObj = isValidUrl(url);
+        if (!urlObj) {
             showIndicator('offline', 'Invalid URL format');
             return;
         }
 
-        // Check if URL ends with supported format
+        // Check if URL ends with supported format by examining pathname
+        const pathname = urlObj.pathname.toLowerCase();
         const hasValidFormat = SUPPORTED_FORMATS.some(format => 
-            url.toLowerCase().endsWith(format)
+            pathname.endsWith(format)
         );
         if (!hasValidFormat) {
             showIndicator('offline', 'URL must point to an .mp4 file');
@@ -86,9 +88,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function cleanupVideo(videoElement) {
         // Clean up video element to prevent memory leaks
-        videoElement.src = '';
-        videoElement.load();
-        videoElement.remove();
+        try {
+            videoElement.src = '';
+            videoElement.load();
+            if (videoElement.parentNode) {
+                videoElement.remove();
+            }
+        } catch (e) {
+            // Safely ignore cleanup errors
+        }
     }
 
     function showIndicator(status, message) {
@@ -104,10 +112,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function isValidUrl(string) {
         try {
-            new URL(string);
-            return true;
+            const url = new URL(string);
+            // Only allow http and https protocols for security
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                return null;
+            }
+            return url;
         } catch (_) {
-            return false;
+            return null;
         }
     }
 });
