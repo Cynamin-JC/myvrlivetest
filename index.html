@@ -466,68 +466,112 @@
                 status.textContent = 'Checking...';
                 status.className = 'video-item-status';
 
-                // Use a multi-method approach for checking
-                var checkComplete = false;
-                var methodsAttempted = 0;
-                var totalMethods = 2;
+                var resolved = false;
 
-                // Method 1: Try fetch with no-cors (works in most environments)
-                fetch(url, { 
+                // Try fetch first to get HTTP status code
+                fetch(url, {
                     method: 'HEAD',
-                    mode: 'no-cors',
                     cache: 'no-cache'
                 })
                 .then(function(response) {
-                    methodsAttempted++;
-                    // With no-cors, we can't read the response, but if fetch succeeds, URL is reachable
-                    if (!checkComplete) {
-                        checkComplete = true;
+                    if (!resolved) {
+                        resolved = true;
+                        if (response.ok) {
+                            // HTTP 200-299 status
+                            indicator.className = 'video-item-indicator online';
+                            status.textContent = 'Online';
+                            status.className = 'video-item-status online';
+                        } else {
+                            // HTTP error status (404, 403, etc.)
+                            indicator.className = 'video-item-indicator offline';
+                            status.textContent = 'Offline';
+                            status.className = 'video-item-status offline';
+                        }
+                    }
+                })
+                .catch(function(error) {
+                    // Fetch failed due to CORS or network error
+                    // Try alternative methods
+                    if (!resolved) {
+                        tryAlternativeCheck(url, indicator, status, function(isResolved) {
+                            resolved = isResolved;
+                        });
+                    }
+                });
+
+                // Set a timeout in case fetch hangs
+                setTimeout(function() {
+                    if (!resolved) {
+                        tryAlternativeCheck(url, indicator, status, function(isResolved) {
+                            resolved = isResolved;
+                        });
+                    }
+                }, 2000);
+            }
+
+            function tryAlternativeCheck(url, indicator, status, callback) {
+                var localResolved = false;
+
+                // Use Image object as a reliable cross-origin check
+                var img = new Image();
+                var imgTimeout = setTimeout(function() {
+                    if (!localResolved) {
+                        localResolved = true;
+                        callback(true);
+                        // Image failed to load within timeout - likely offline
+                        indicator.className = 'video-item-indicator offline';
+                        status.textContent = 'Offline';
+                        status.className = 'video-item-status offline';
+                    }
+                }, 5000);
+
+                img.onload = function() {
+                    clearTimeout(imgTimeout);
+                    if (!localResolved) {
+                        localResolved = true;
+                        callback(true);
+                        // Image loaded - server is responding, video is online
                         indicator.className = 'video-item-indicator online';
                         status.textContent = 'Online';
                         status.className = 'video-item-status online';
                     }
-                })
-                .catch(function(error) {
-                    methodsAttempted++;
-                    // Fetch failed, but this doesn't mean the video is offline
-                    // Try video element method
-                    if (methodsAttempted >= totalMethods && !checkComplete) {
-                        tryVideoElementCheck(url, indicator, status);
-                    }
-                });
+                };
 
-                // Method 2: Try video element after a short delay
-                setTimeout(function() {
-                    if (!checkComplete) {
+                img.onerror = function() {
+                    clearTimeout(imgTimeout);
+                    if (!localResolved) {
+                        localResolved = true;
+                        callback(true);
+                        // Image failed - try video element to determine if online or offline
                         tryVideoElementCheck(url, indicator, status);
                     }
-                }, 500);
+                };
+
+                img.src = url;
             }
 
             function tryVideoElementCheck(url, indicator, status) {
-                // Try to load the video using video element
                 const testVideo = document.createElement('video');
                 testVideo.muted = true;
                 testVideo.preload = 'metadata';
                 
-                let resolved = false;
-                let errorCode = null;
+                let localResolved = false;
 
-                // Set a reasonable timeout
+                // Shorter timeout for video check
                 const timeout = setTimeout(function() {
-                    if (!resolved) {
-                        resolved = true;
-                        // If we timeout without error, assume video is loading (online but slow)
-                        indicator.className = 'video-item-indicator online';
-                        status.textContent = 'Online';
-                        status.className = 'video-item-status online';
+                    if (!localResolved) {
+                        localResolved = true;
+                        // Timeout - assume offline
+                        indicator.className = 'video-item-indicator offline';
+                        status.textContent = 'Offline';
+                        status.className = 'video-item-status offline';
                         cleanupVideo(testVideo);
                     }
-                }, CHECK_TIMEOUT_MS);
+                }, 4000);
 
                 testVideo.addEventListener('loadedmetadata', function() {
-                    if (!resolved) {
-                        resolved = true;
+                    if (!localResolved) {
+                        localResolved = true;
                         clearTimeout(timeout);
                         indicator.className = 'video-item-indicator online';
                         status.textContent = 'Online';
@@ -537,8 +581,8 @@
                 });
 
                 testVideo.addEventListener('loadeddata', function() {
-                    if (!resolved) {
-                        resolved = true;
+                    if (!localResolved) {
+                        localResolved = true;
                         clearTimeout(timeout);
                         indicator.className = 'video-item-indicator online';
                         status.textContent = 'Online';
@@ -548,8 +592,8 @@
                 });
 
                 testVideo.addEventListener('canplay', function() {
-                    if (!resolved) {
-                        resolved = true;
+                    if (!localResolved) {
+                        localResolved = true;
                         clearTimeout(timeout);
                         indicator.className = 'video-item-indicator online';
                         status.textContent = 'Online';
@@ -559,23 +603,28 @@
                 });
 
                 testVideo.addEventListener('error', function(e) {
-                    if (!resolved) {
-                        resolved = true;
+                    if (!localResolved) {
+                        localResolved = true;
                         clearTimeout(timeout);
                         
-                        // Check error code
                         if (testVideo.error) {
-                            errorCode = testVideo.error.code;
-                            
-                            // Error code 2 (NETWORK) or 4 (SRC_NOT_SUPPORTED) in iframe/Google Sites
-                            // often means CORS issue, not that video is offline
-                            if (errorCode === 2 || errorCode === 4) {
-                                // Assume online but with CORS restrictions
-                                indicator.className = 'video-item-indicator online';
-                                status.textContent = 'Online';
-                                status.className = 'video-item-status online';
-                                cleanupVideo(testVideo);
-                                return;
+                            // Check error code
+                            switch(testVideo.error.code) {
+                                case 2: // MEDIA_ERR_NETWORK
+                                    // Network error could be CORS or actual network issue
+                                    // In Google Sites, assume it's online if we got this far
+                                    indicator.className = 'video-item-indicator online';
+                                    status.textContent = 'Online';
+                                    status.className = 'video-item-status online';
+                                    cleanupVideo(testVideo);
+                                    return;
+                                case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+                                    // In Google Sites, this often means CORS, not that file doesn't exist
+                                    indicator.className = 'video-item-indicator online';
+                                    status.textContent = 'Online';
+                                    status.className = 'video-item-status online';
+                                    cleanupVideo(testVideo);
+                                    return;
                             }
                         }
                         
@@ -587,7 +636,6 @@
                     }
                 });
 
-                // Start loading the video
                 testVideo.src = url;
                 testVideo.load();
             }
