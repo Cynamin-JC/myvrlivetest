@@ -33,10 +33,6 @@
             border-radius: 8px;
             font-size: 14px;
         }
-        body.light-mode table {
-            background: #fff;
-            color: #333;
-        }
         thead {
             background-color: #4285f4;
             color: white;
@@ -51,28 +47,19 @@
         tbody tr:hover {
             background: #444;
         }
-        body.light-mode tbody tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-        body.light-mode tbody tr:hover {
-            background: #eee;
-        }
         .status {
             display: inline-block;
             padding: 3px 8px;
             border-radius: 20px;
             font-weight: bold;
-            text-align: center;
-            color: #fff;
         }
         .status.online {
             background-color: #34a853;
+            color: white;
         }
         .status.offline {
             background-color: #ea4335;
-        }
-        .status.checking {
-            background-color: #fbbc05;
+            color: white;
         }
         #refreshButton, #modeButton {
             position: fixed;
@@ -106,7 +93,7 @@
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.5);
         }
         #onlineUsers h3 {
-            margin-top: 0;
+            margin: 0;
             border-bottom: 1px solid #666;
             text-align: center;
         }
@@ -150,73 +137,90 @@
     </div>
 
     <script>
-        let videoLinks = []; // Global links array for consistency of states
-        let videoStatuses = {}; // Object to store status persistence
+        let videoLinks = []; // Array for video links
+        let videoStatuses = {}; // Keep track of online status persistently
 
         // Fetch video links
         async function fetchVideoLinks() {
             try {
-                const response = await fetch('video-links.json'); // Change path as needed
+                const response = await fetch('video-links.json'); // Update path if needed
                 videoLinks = await response.json();
-                videoLinks.forEach((video) => {
+                // Initialize statuses for all videos (default to offline)
+                videoLinks.forEach(video => {
                     if (!(video.name in videoStatuses)) {
-                        videoStatuses[video.name] = false; // Default to "Offline" if not known
+                        videoStatuses[video.name] = false;
                     }
                 });
             } catch (error) {
-                console.error("Failed to fetch video links:", error);
+                console.error('Error fetching video-links.json:', error);
             }
         }
 
-        // Populate the video table
+        // Populate table with video data
         async function populateTable() {
-            if (videoLinks.length === 0) await fetchVideoLinks();
+            if (videoLinks.length === 0) {
+                await fetchVideoLinks();
+            }
 
-            const tableBody = document.getElementById("videoTableBody");
-            tableBody.innerHTML = ""; // Clear the table
+            const tableBody = document.getElementById('videoTableBody');
+            tableBody.innerHTML = ''; // Clear table
 
             videoLinks.forEach((video, index) => {
-                const row = document.createElement("tr");
-                row.id = `video-row-${index}`; // Unique ID for each row
+                const row = document.createElement('tr');
+                row.id = `video-row-${index}`; // Unique ID for linking
 
-                const nameCell = document.createElement("td");
+                const nameCell = document.createElement('td');
                 nameCell.textContent = video.name;
                 row.appendChild(nameCell);
 
-                const linkCell = document.createElement("td");
-                const linkAnchor = document.createElement("a");
-                linkAnchor.href = video.url;
-                linkAnchor.textContent = video.url;
-                linkAnchor.target = "_blank";
-                linkCell.appendChild(linkAnchor);
+                const linkCell = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = video.url;
+                link.textContent = video.url;
+                link.target = '_blank';
+                linkCell.appendChild(link);
                 row.appendChild(linkCell);
 
-                const statusCell = document.createElement("td");
-                statusCell.className = `status ${videoStatuses[video.name] ? "online" : "offline"}`;
-                statusCell.textContent = videoStatuses[video.name] ? "Online" : "Offline";
+                const statusCell = document.createElement('td');
+                const isOnline = videoStatuses[video.name];
+                statusCell.className = isOnline ? 'status online' : 'status offline';
+                statusCell.textContent = isOnline ? 'Online' : 'Offline';
                 row.appendChild(statusCell);
 
                 tableBody.appendChild(row);
             });
 
-            updateOnlineList(); // Update the online list floating box
+            updateOnlineList(); // Update floating online users box
         }
 
-        function updateOnlineList() {
-            const onlineList = document.getElementById("onlineList");
-            onlineList.innerHTML = ""; // Clear list
+        // Update online/offline status dynamically (simulate API calls)
+        async function simulateVideoStatus() {
+            videoLinks.forEach((video) => {
+                // Simulate a status change for each video (random)
+                const isOnline = Math.random() > 0.5; // Randomize online/offline
+                videoStatuses[video.name] = isOnline;
+            });
 
-            const onlineRows = Object.entries(videoStatuses).filter(([, status]) => status);
-            if (onlineRows.length === 0) {
-                const emptyMessage = document.createElement("li");
-                emptyMessage.textContent = "Nobody is online";
-                onlineList.appendChild(emptyMessage);
+            await populateTable(); // Rebuild the table with updated statuses
+        }
+
+        // Update the floating "Currently Online" list
+        function updateOnlineList() {
+            const onlineList = document.getElementById('onlineList');
+            onlineList.innerHTML = ''; // Clear current list
+
+            // Filter users who are online
+            const onlineUsers = Object.entries(videoStatuses).filter(([name, status]) => status);
+            if (onlineUsers.length === 0) {
+                const noOneOnline = document.createElement('li');
+                noOneOnline.textContent = 'Nobody is online';
+                onlineList.appendChild(noOneOnline);
                 return;
             }
 
-            onlineRows.forEach(([name], index) => {
-                const listItem = document.createElement("li");
-                const link = document.createElement("a");
+            onlineUsers.forEach(([name], index) => {
+                const listItem = document.createElement('li');
+                const link = document.createElement('a');
                 link.href = `#video-row-${index}`;
                 link.textContent = name;
                 listItem.appendChild(link);
@@ -224,17 +228,16 @@
             });
         }
 
-        // Refresh button
-        document.getElementById("refreshButton").addEventListener("click", populateTable);
+        // Event listeners
+        document.getElementById('refreshButton').addEventListener('click', simulateVideoStatus);
 
-        // Light mode button
-        const modeButton = document.getElementById("modeButton");
-        modeButton.addEventListener("click", () => {
-            document.body.classList.toggle("light-mode");
-            modeButton.textContent = document.body.classList.contains("light-mode") ? "Dark Mode" : "Light Mode";
+        const modeButton = document.getElementById('modeButton');
+        modeButton.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            modeButton.textContent = document.body.classList.contains('light-mode') ? 'Dark Mode' : 'Light Mode';
         });
 
-        // Initialize table
+        // Initial table population
         populateTable();
     </script>
 </body>
