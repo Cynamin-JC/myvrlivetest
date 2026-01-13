@@ -49,7 +49,7 @@
         }
 
         th, td {
-            padding: 10px;
+            padding: 10px; /* Adjust table padding */
             text-align: left;
         }
 
@@ -73,14 +73,14 @@
         /* Status Chips */
         .status {
             display: inline-block;
-            padding: 3px 8px;
+            padding: 3px 8px; /* Adjust padding for status */
             font-size: 12px;
             border-radius: 20px;
             text-align: center;
             font-weight: bold;
             color: #fff;
             vertical-align: middle;
-            line-height: 1.4;
+            line-height: 1.4; /* Center with text */
         }
 
         .status.online {
@@ -98,7 +98,7 @@
         a {
             text-decoration: none;
             color: #8ab4f8;
-            vertical-align: middle;
+            vertical-align: middle; /* Align links */
         }
 
         a:hover {
@@ -157,31 +157,10 @@
     <script>
         let videoLinks = [];
 
-        // Helper function to control concurrency
-        async function withConcurrencyLimit(tasks, limit) {
-            const results = [];
-            const executing = [];
-            
-            for (const task of tasks) {
-                const promise = task().then(result => {
-                    executing.splice(executing.indexOf(promise), 1);
-                    return result;
-                });
-                results.push(promise);
-
-                // Enforce concurrency limit
-                executing.push(promise);
-                if (executing.length >= limit) {
-                    await Promise.race(executing);
-                }
-            }
-
-            return Promise.all(results);
-        }
-
+        // Fetch video links JSON file
         async function fetchVideoLinks() {
             try {
-                const response = await fetch('video-links.json');
+                const response = await fetch('video-links.json'); // Replace with correct path
                 videoLinks = await response.json();
                 return videoLinks;
             } catch (error) {
@@ -190,13 +169,15 @@
             }
         }
 
+        // Populate the table
         async function populateTable() {
-            if (videoLinks.length === 0) await fetchVideoLinks();
+            if (videoLinks.length === 0) await fetchVideoLinks(); // Fetch links if not already loaded
 
             const tableBody = document.getElementById('videoTableBody');
-            tableBody.innerHTML = '';
+            tableBody.innerHTML = ''; // Clear existing rows
 
-            const tasks = videoLinks.map(video => async () => {
+            // Process all video links
+            videoLinks.forEach(async video => {
                 const row = document.createElement('tr');
 
                 const nameCell = document.createElement('td');
@@ -218,18 +199,84 @@
 
                 tableBody.appendChild(row);
 
+                // Check video status
                 await checkVideoStatus(video.url, statusCell);
             });
-
-            // Limit concurrency to 5
-            await withConcurrencyLimit(tasks, 5);
         }
 
+        // Check video status
         async function checkVideoStatus(url, statusCell) {
-            // Implement Twitch, Kick, and video checks based on previous examples
+            try {
+                if (url.includes('twitch.tv')) {
+                    // Check Twitch stream
+                    const username = url.split('twitch.tv/')[1];
+                    const isLive = await checkTwitchStatus(username);
+                    updateStatusCell(isLive, statusCell);
+                } else if (url.includes('kick.com')) {
+                    // Check Kick stream
+                    const username = url.split('kick.com/')[1];
+                    const isLive = await checkKickStatus(username);
+                    updateStatusCell(isLive, statusCell);
+                } else {
+                    // Check video link availability
+                    checkVideoLink(url, statusCell);
+                }
+            } catch (error) {
+                console.error(`Error checking status for ${url}:`, error);
+                updateStatusCell(false, statusCell); // Default to offline if an error occurs
+            }
         }
 
+        // Update the status cell
+        function updateStatusCell(isOnline, statusCell) {
+            statusCell.className = `status ${isOnline ? 'online' : 'offline'}`;
+            statusCell.textContent = isOnline ? 'Online' : 'Offline';
+        }
+
+        // Example Twitch status check
+        async function checkTwitchStatus(username) {
+            try {
+                const response = await fetch(`https://www.twitch.tv/${username}`);
+                const html = await response.text();
+                return html.includes(`"isLiveBroadcast":true`);
+            } catch (error) {
+                console.error(`Error checking Twitch status for ${username}:`, error);
+                return false;
+            }
+        }
+
+        // Example Kick status check
+        async function checkKickStatus(username) {
+            try {
+                const response = await fetch(`https://kick.com/api/v2/channels/${username}`);
+                const data = await response.json();
+                return data && data.livestream && data.livestream.is_live;
+            } catch (error) {
+                console.error(`Error checking Kick status for ${username}:`, error);
+                return false;
+            }
+        }
+
+        // Check video link availability
+        function checkVideoLink(url, statusCell) {
+            const video = document.createElement('video');
+            video.onloadeddata = () => updateStatusCell(true, statusCell);
+            video.onerror = () => updateStatusCell(false, statusCell);
+            video.src = url;
+        }
+
+        // Add Refresh Button functionality
         document.getElementById('refreshButton').addEventListener('click', populateTable);
+
+        // Add Light/Dark Mode Toggle
+        const modeButton = document.getElementById('modeButton');
+        modeButton.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            modeButton.textContent =
+                document.body.classList.contains('light-mode') ? 'Dark Mode' : 'Light Mode';
+        });
+
+        // Initialize table on page load
         populateTable();
     </script>
 </body>
