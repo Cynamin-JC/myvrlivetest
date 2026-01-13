@@ -3,12 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Link Status Checker</title>
-  <link rel="stylesheet" href="styles.css"> <!-- Point to CSS -->
+  <title>Video Link Status</title>
+  <style>
+    /* CSS Styles */
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .online {
+      background-color: green;
+    }
+
+    .offline {
+      background-color: red;
+    }
+  </style>
 </head>
 <body>
   <h1>Video Link Status</h1>
   <ul id="video-list"></ul>
-  <script src="app.js" defer></script> <!-- Point to JS -->
+
+  <script>
+    // JavaScript Logic
+    const videoLinks = [
+      { name: "Video 1", url: "https://example.com/video1" },
+      { name: "Video 2", url: "https://example.com/video2" },
+      { name: "Video 3", url: "https://example.com/video3" }
+    ];
+
+    async function checkStatus(url) {
+      try {
+        const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        return response && response.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function updateVideoList() {
+      const videoList = document.getElementById('video-list');
+
+      for (const { name, url } of videoLinks) {
+        const isOnline = await checkStatus(url);
+
+        const listItem = document.createElement('li');
+        const statusIndicator = document.createElement('span');
+        const linkElement = document.createElement('a');
+
+        statusIndicator.className = `status-indicator ${isOnline ? 'online' : 'offline'}`;
+        linkElement.href = url;
+        linkElement.textContent = name;
+        linkElement.target = '_blank';
+
+        listItem.appendChild(statusIndicator);
+        listItem.appendChild(linkElement);
+        videoList.appendChild(listItem);
+      }
+    }
+
+    updateVideoList();
+  </script>
 </body>
 </html>
