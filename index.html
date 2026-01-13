@@ -49,7 +49,7 @@
         }
 
         th, td {
-            padding: 10px; /* Reduced padding for compact layout */
+            padding: 10px;
             text-align: left;
         }
 
@@ -73,13 +73,13 @@
         /* Status Chips */
         .status {
             display: inline-block;
-            padding: 3px 8px; /* Smaller chips */
+            padding: 3px 8px;
             font-size: 12px;
             border-radius: 20px;
             text-align: center;
             font-weight: bold;
             color: #fff;
-            vertical-align: middle; /* Align with links */
+            vertical-align: middle;
             line-height: 1.4;
         }
 
@@ -95,11 +95,10 @@
             background-color: #fbbc05;
         }
 
-        /* Link Styling */
         a {
             text-decoration: none;
             color: #8ab4f8;
-            vertical-align: middle; /* Align links */
+            vertical-align: middle;
         }
 
         a:hover {
@@ -110,7 +109,6 @@
             color: #4285f4;
         }
 
-        /* Floating Buttons */
         #refreshButton, #modeButton {
             position: fixed;
             bottom: 20px;
@@ -120,7 +118,7 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px; /* Slightly smaller buttons */
+            font-size: 14px;
             font-weight: bold;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
             z-index: 100;
@@ -131,11 +129,11 @@
         }
 
         #refreshButton {
-            left: 20px; /* Bottom-left corner */
+            left: 20px;
         }
 
         #modeButton {
-            right: 20px; /* Bottom-right corner */
+            right: 20px;
         }
     </style>
 </head>
@@ -150,19 +148,16 @@
                 <th>Status</th>
             </tr>
         </thead>
-        <tbody id="videoTableBody">
-            <!-- Table rows will be dynamically added here -->
-        </tbody>
+        <tbody id="videoTableBody"></tbody>
     </table>
 
-    <!-- Floating Buttons -->
     <button id="refreshButton">Refresh</button>
     <button id="modeButton">Light Mode</button>
 
     <script>
-        let videoLinks = []; // Global storage for fetched links
+        let videoLinks = [];
 
-        // Concurrency helper function
+        // Helper function to control concurrency
         async function withConcurrencyLimit(tasks, limit) {
             const results = [];
             const executing = [];
@@ -174,7 +169,7 @@
                 });
                 results.push(promise);
 
-                // Limit number of ongoing tasks
+                // Enforce concurrency limit
                 executing.push(promise);
                 if (executing.length >= limit) {
                     await Promise.race(executing);
@@ -184,10 +179,9 @@
             return Promise.all(results);
         }
 
-        // Fetch video links JSON file
         async function fetchVideoLinks() {
             try {
-                const response = await fetch('video-links.json'); // Replace with correct path
+                const response = await fetch('video-links.json');
                 videoLinks = await response.json();
                 return videoLinks;
             } catch (error) {
@@ -196,12 +190,11 @@
             }
         }
 
-        // Populate the table with concurrency limited to 10
         async function populateTable() {
             if (videoLinks.length === 0) await fetchVideoLinks();
 
             const tableBody = document.getElementById('videoTableBody');
-            tableBody.innerHTML = ''; // Clear existing rows
+            tableBody.innerHTML = '';
 
             const tasks = videoLinks.map(video => async () => {
                 const row = document.createElement('tr');
@@ -228,16 +221,16 @@
                 await checkVideoStatus(video.url, statusCell);
             });
 
-            // Limit concurrency to 10
-            await withConcurrencyLimit(tasks, 10);
+            // Limit concurrency to 5
+            await withConcurrencyLimit(tasks, 5);
         }
 
         async function checkVideoStatus(url, statusCell) {
-            // Check logic for Twitch, Kick, or video files
+            // Implement Twitch, Kick, and video checks based on previous examples
         }
 
         document.getElementById('refreshButton').addEventListener('click', populateTable);
-        populateTable(); // Initialize page
+        populateTable();
     </script>
 </body>
 </html>
