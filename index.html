@@ -13,147 +13,116 @@
             line-height: 1.6;
             margin: 0;
             padding: 20px;
-            position: relative;
             transition: background-color 0.3s, color 0.3s;
         }
-
         body.light-mode {
             background: #f3f4f6;
             color: #333;
         }
-
         h1 {
             text-align: center;
             font-size: 24px;
             margin-bottom: 20px;
         }
-
-        /* Table Styling */
         table {
             width: 90%;
-            margin: 0 auto;
+            margin: 20px auto;
             border-collapse: collapse;
             background: #2e2e2e;
+            color: #fff;
             border-radius: 8px;
             font-size: 14px;
         }
-
         body.light-mode table {
             background: #fff;
+            color: #333;
         }
-
-        thead tr {
+        thead {
             background-color: #4285f4;
-            color: #fff;
+            color: white;
         }
-
         th, td {
             padding: 10px;
             text-align: left;
         }
-
         tbody tr:nth-child(even) {
             background: #333;
         }
-
         tbody tr:hover {
             background: #444;
         }
-
         body.light-mode tbody tr:nth-child(even) {
             background: #f9f9f9;
         }
-
         body.light-mode tbody tr:hover {
-            background: #eef;
+            background: #eee;
         }
-
-        /* Status Chips */
         .status {
             display: inline-block;
             padding: 3px 8px;
-            font-size: 12px;
             border-radius: 20px;
-            color: #fff;
             font-weight: bold;
+            text-align: center;
+            color: #fff;
         }
-
         .status.online {
             background-color: #34a853;
         }
-
         .status.offline {
             background-color: #ea4335;
         }
-
         .status.checking {
             background-color: #fbbc05;
         }
-
-        /* Buttons */
         #refreshButton, #modeButton {
             position: fixed;
             bottom: 20px;
             padding: 10px 20px;
-            background-color: #4285f4;
-            color: #fff;
+            background: #4285f4;
             border: none;
+            color: white;
             border-radius: 5px;
             font-size: 14px;
             font-weight: bold;
-            z-index: 100;
             cursor: pointer;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
         }
-
         #refreshButton {
             left: 20px;
         }
-
         #modeButton {
             right: 20px;
         }
-
-        #refreshButton:hover, #modeButton:hover {
-            background-color: #306dc5;
-        }
-
-        /* Floating Online List */
         #onlineUsers {
             position: fixed;
             bottom: 80px;
             left: 20px;
             width: 250px;
-            background: #000;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            border-radius: 5px;
+            border-radius: 8px;
             padding: 10px;
             z-index: 1000;
-            font-size: 14px;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.5);
         }
-
         #onlineUsers h3 {
             margin-top: 0;
-            text-align: center;
             border-bottom: 1px solid #666;
+            text-align: center;
         }
-
-        #onlineUsers ul {
+        #onlineList {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-
-        #onlineUsers li {
+        #onlineList li {
             margin: 5px 0;
         }
-
-        #onlineUsers a {
+        #onlineList a {
             color: #8ab4f8;
             text-decoration: none;
         }
-
-        #onlineUsers a:hover {
+        #onlineList a:hover {
             text-decoration: underline;
         }
     </style>
@@ -169,46 +138,46 @@
                 <th>Status</th>
             </tr>
         </thead>
-        <tbody id="videoTableBody">
-            <!-- Content dynamically added here -->
-        </tbody>
+        <tbody id="videoTableBody"></tbody>
     </table>
 
-    <!-- Buttons -->
     <button id="refreshButton">Refresh</button>
     <button id="modeButton">Light Mode</button>
 
-    <!-- Floating Online List -->
     <div id="onlineUsers">
         <h3>Currently Online</h3>
-        <ul id="onlineList">
-            <!-- Users dynamically added here -->
-        </ul>
+        <ul id="onlineList"></ul>
     </div>
 
     <script>
-        let videoLinks = []; // Global variable for links
+        let videoLinks = []; // Global links array for consistency of states
+        let videoStatuses = {}; // Object to store status persistence
 
-        // Fetch video links from JSON file or endpoint
+        // Fetch video links
         async function fetchVideoLinks() {
             try {
-                const response = await fetch('video-links.json');
+                const response = await fetch('video-links.json'); // Change path as needed
                 videoLinks = await response.json();
+                videoLinks.forEach((video) => {
+                    if (!(video.name in videoStatuses)) {
+                        videoStatuses[video.name] = false; // Default to "Offline" if not known
+                    }
+                });
             } catch (error) {
                 console.error("Failed to fetch video links:", error);
             }
         }
 
-        // Populate the table with video links
+        // Populate the video table
         async function populateTable() {
             if (videoLinks.length === 0) await fetchVideoLinks();
 
             const tableBody = document.getElementById("videoTableBody");
-            tableBody.innerHTML = ''; // Clear table before populating
+            tableBody.innerHTML = ""; // Clear the table
 
             videoLinks.forEach((video, index) => {
                 const row = document.createElement("tr");
-                row.id = `video-row-${index}`; // Give each row a unique ID
+                row.id = `video-row-${index}`; // Unique ID for each row
 
                 const nameCell = document.createElement("td");
                 nameCell.textContent = video.name;
@@ -217,83 +186,55 @@
                 const linkCell = document.createElement("td");
                 const linkAnchor = document.createElement("a");
                 linkAnchor.href = video.url;
-                linkAnchor.target = "_blank";
                 linkAnchor.textContent = video.url;
+                linkAnchor.target = "_blank";
                 linkCell.appendChild(linkAnchor);
                 row.appendChild(linkCell);
 
                 const statusCell = document.createElement("td");
-                statusCell.className = "status checking";
-                statusCell.textContent = "Checking...";
+                statusCell.className = `status ${videoStatuses[video.name] ? "online" : "offline"}`;
+                statusCell.textContent = videoStatuses[video.name] ? "Online" : "Offline";
                 row.appendChild(statusCell);
 
                 tableBody.appendChild(row);
-
-                // Start checking video status
-                checkVideoStatus(video.url, statusCell, row.id);
             });
+
+            updateOnlineList(); // Update the online list floating box
         }
 
-        // Check video status (simulate online/offline for now)
-        async function checkVideoStatus(url, statusCell, rowId) {
-            try {
-                // Simulate status check (replace with real API calls if necessary)
-                const isOnline = Math.random() > 0.5; // 50% random online/offline
-                updateStatusCell(isOnline, statusCell, rowId);
-            } catch (error) {
-                console.error(`Error checking video status for ${url}`, error);
-                updateStatusCell(false, statusCell, rowId); // Mark offline on error
-            }
-        }
-
-        // Update the table's status cell and the floating online box
-        function updateStatusCell(isOnline, statusCell, rowId) {
-            statusCell.className = `status ${isOnline ? 'online' : 'offline'}`;
-            statusCell.textContent = isOnline ? "Online" : "Offline";
-
-            // After every update, refresh the floating list of online users
-            updateOnlineList();
-        }
-
-        // Update the floating "Currently Online" box
         function updateOnlineList() {
             const onlineList = document.getElementById("onlineList");
-            onlineList.innerHTML = ""; // Clear the current list
+            onlineList.innerHTML = ""; // Clear list
 
-            const onlineRows = document.querySelectorAll(".status.online");
+            const onlineRows = Object.entries(videoStatuses).filter(([, status]) => status);
             if (onlineRows.length === 0) {
-                const noOneOnline = document.createElement("li");
-                noOneOnline.textContent = "Nobody is online";
-                onlineList.appendChild(noOneOnline);
+                const emptyMessage = document.createElement("li");
+                emptyMessage.textContent = "Nobody is online";
+                onlineList.appendChild(emptyMessage);
                 return;
             }
 
-            onlineRows.forEach((statusCell) => {
-                const row = statusCell.parentElement;
-                const name = row.querySelector("td:first-child").textContent;
-
+            onlineRows.forEach(([name], index) => {
                 const listItem = document.createElement("li");
                 const link = document.createElement("a");
-                link.href = `#${row.id}`; // Use the row's ID for linking
+                link.href = `#video-row-${index}`;
                 link.textContent = name;
                 listItem.appendChild(link);
-
                 onlineList.appendChild(listItem);
             });
         }
 
-        // Add Event Listeners for Buttons
+        // Refresh button
         document.getElementById("refreshButton").addEventListener("click", populateTable);
 
+        // Light mode button
         const modeButton = document.getElementById("modeButton");
         modeButton.addEventListener("click", () => {
             document.body.classList.toggle("light-mode");
-            modeButton.textContent = document.body.classList.contains("light-mode")
-                ? "Dark Mode"
-                : "Light Mode";
+            modeButton.textContent = document.body.classList.contains("light-mode") ? "Dark Mode" : "Light Mode";
         });
 
-        // Populate the table on page load
+        // Initialize table
         populateTable();
     </script>
 </body>
