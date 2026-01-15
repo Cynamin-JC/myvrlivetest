@@ -421,14 +421,18 @@
             
             if (url.includes('twitch.tv')) {
                 const username = url.split('twitch.tv/')[1];
+                // Sanitize username to prevent XSS
+                const sanitizedUsername = encodeURIComponent(username.split('?')[0].split('#')[0]);
                 const iframe = document.createElement('iframe');
-                iframe.src = `https://player.twitch.tv/?channel=${username}&parent=${window.location.hostname}`;
+                iframe.src = `https://player.twitch.tv/?channel=${sanitizedUsername}&parent=${encodeURIComponent(window.location.hostname)}`;
                 iframe.allowfullscreen = true;
                 playerContent.appendChild(iframe);
             } else if (url.includes('kick.com')) {
                 const username = url.split('kick.com/')[1];
+                // Sanitize username to prevent XSS
+                const sanitizedUsername = encodeURIComponent(username.split('?')[0].split('#')[0]);
                 const iframe = document.createElement('iframe');
-                iframe.src = `https://player.kick.com/${username}`;
+                iframe.src = `https://player.kick.com/${sanitizedUsername}`;
                 iframe.allowfullscreen = true;
                 playerContent.appendChild(iframe);
             } else {
