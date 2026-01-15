@@ -28,7 +28,6 @@
             margin-bottom: 20px;
         }
 
-        /* Table Container */
         .table-container {
             display: flex;
             justify-content: space-between;
@@ -137,7 +136,6 @@
             background-color: #005BB5;
         }
 
-        /* Floating Buttons */
         #refreshButton, #modeButton {
             position: fixed;
             bottom: 20px;
@@ -167,10 +165,8 @@
             color: white;
             border-radius: 8px;
             padding: 15px;
-            font-size: 14px;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
             z-index: 1000;
-            max-height: none;
         }
 
         #onlineUsers h3 {
@@ -198,47 +194,48 @@
             padding: 5px 10px;
         }
 
-        /* Floating Video Player */
-        #videoPlayerFloating {
+        /* Video Player Floating Window */
+        #floatingVideoPlayer {
             position: fixed;
-            bottom: 150px;
+            bottom: 120px;
             right: 30px;
             width: 400px;
             max-width: 90%;
             background: rgba(0, 0, 0, 0.9);
             color: white;
             border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
             z-index: 2000;
             display: none;
             flex-direction: column;
             align-items: center;
         }
 
-        #videoPlayerFloating video {
+        #floatingVideoPlayer video {
             width: 100%;
             border-radius: 8px;
-            background: black;
         }
 
-        #stopPlayerButton {
+        #closeVideoPlayer {
             margin-top: 10px;
             padding: 5px 10px;
-            background-color: #ea4335;
-            color: white;
+            background: #ea4335;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
             cursor: pointer;
         }
 
-        #stopPlayerButton:hover {
-            background: #c5221f;
+        #closeVideoPlayer:hover {
+            background: #d32f2f;
         }
     </style>
 </head>
 <body>
     <h1>Video Links & Stream Status</h1>
+
     <div class="table-container">
         <table>
             <thead>
@@ -262,22 +259,12 @@
         </table>
     </div>
 
-    <!-- Floating Buttons -->
     <button id="refreshButton">Refresh</button>
     <button id="modeButton">Light Mode</button>
 
-    <!-- Floating Online Users -->
-    <div id="onlineUsers">
-        <h3>Online Now</h3>
-        <ul id="onlineList">
-            <li>No one is online</li>
-        </ul>
-    </div>
-
-    <!-- Floating Video Player -->
-    <div id="videoPlayerFloating">
-        <video id="videoElement" controls autoplay></video>
-        <button id="stopPlayerButton">Stop Player</button>
+    <div id="floatingVideoPlayer">
+        <video id="videoPlayer" controls autoplay></video>
+        <button id="closeVideoPlayer">Close Player</button>
     </div>
 
     <script>
@@ -296,33 +283,26 @@
 
         async function populateTables() {
             if (videoLinks.length === 0) await fetchVideoLinks();
-
             const leftTable = document.getElementById('leftTable');
             const rightTable = document.getElementById('rightTable');
             leftTable.innerHTML = '';
             rightTable.innerHTML = '';
-
             videoLinks.sort((a, b) => a.name.localeCompare(b.name));
-            const midIndex = Math.ceil(videoLinks.length / 2);
-            const columns = [videoLinks.slice(0, midIndex), videoLinks.slice(midIndex)];
-
-            updateOnlineList();
+            const columns = [videoLinks.slice(0, Math.ceil(videoLinks.length / 2)), videoLinks.slice(Math.ceil(videoLinks.length / 2))];
 
             columns.forEach((group, index) => {
                 const currentTable = index === 0 ? leftTable : rightTable;
                 group.forEach(video => {
                     const row = document.createElement('tr');
-
                     const nameCell = document.createElement('td');
                     nameCell.textContent = video.name;
-                    row.appendChild(nameCell);
-
                     const linkCell = document.createElement('td');
-                    const linkButton = document.createElement('button');
-                    linkButton.textContent = 'Watch';
-                    linkButton.className = 'link-button';
-                    linkButton.addEventListener('click', () => playVideo(video.url));
-                    linkCell.appendChild(linkButton);
+                    const watchButton = document.createElement('button');
+                    watchButton.textContent = 'Watch';
+                    watchButton.className = 'link-button';
+                    watchButton.addEventListener('click', () => playVideo(video.url));
+                    linkCell.appendChild(watchButton);
+                    row.appendChild(nameCell);
                     row.appendChild(linkCell);
 
                     const statusCell = document.createElement('td');
@@ -331,27 +311,23 @@
                     row.appendChild(statusCell);
 
                     currentTable.appendChild(row);
-                    checkVideoStatus(video.url, statusCell);
                 });
             });
         }
 
         function playVideo(url) {
-            const videoPlayer = document.getElementById('videoElement');
-            videoPlayer.src = url;
-            document.getElementById('videoPlayerFloating').style.display = 'flex';
+            const videoElement = document.getElementById('videoPlayer');
+            videoElement.src = url;
+            document.getElementById('floatingVideoPlayer').style.display = 'flex';
         }
 
-        function stopVideoPlayer() {
-            const videoPlayer = document.getElementById('videoElement');
-            videoPlayer.pause();
-            videoPlayer.src = '';
-            document.getElementById('videoPlayerFloating').style.display = 'none';
-        }
+        document.getElementById('closeVideoPlayer').addEventListener('click', () => {
+            const videoElement = document.getElementById('videoPlayer');
+            videoElement.pause();
+            videoElement.src = '';
+            document.getElementById('floatingVideoPlayer').style.display = 'none';
+        });
 
-        document.getElementById('stopPlayerButton').addEventListener('click', stopVideoPlayer);
-
-        // Existing functions like "checkVideoStatus", "updateOnlineList" would go here...
         populateTables();
     </script>
 </body>
